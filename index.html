@@ -127,10 +127,10 @@ function isEggLabel(label) {
 async function loadModel() {
   try {
     modelMsg.textContent = 'AIモデルを読み込んでいます…（初回のみ時間がかかります）';
-    classifier = await pipeline('image-classification', 'Xenova/mobilevit-small', {
+    classifier = await pipeline('image-classification', 'Xenova/mobilenet_v2_1.0_224', {
       device: 'webgpu'
     }).catch(async () => {
-      return await pipeline('image-classification', 'Xenova/mobilevit-small');
+      return await pipeline('image-classification', 'Xenova/mobilenet_v2_1.0_224');
     });
     modelMsg.textContent = 'AIモデル準備完了';
     setTimeout(() => modelMsg.style.display = 'none', 1800);
@@ -139,6 +139,7 @@ async function loadModel() {
   } catch (e) {
     console.error(e);
     modelMsg.textContent = 'AIモデルの読み込みに失敗（デモは利用できます）';
+    demoBtn.textContent = 'デモ：AI判定を再現';
     status.textContent = 'AIモデルを準備できませんでした';
   }
 }
