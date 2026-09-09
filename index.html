@@ -43,6 +43,13 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-f
 button{border:0;border-radius:999px;padding:10px 14px;background:rgba(0,0,0,.58);color:#fff;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:11px}
 #closeBtn{display:none}
 #modelMsg{position:absolute;z-index:9;left:50%;top:calc(50% + 125px);transform:translateX(-50%);font-size:10px;background:rgba(0,0,0,.5);padding:7px 10px;border-radius:9px;white-space:nowrap}
+
+#resultsPanel{position:absolute;z-index:5;top:calc(108px + env(safe-area-inset-top));left:12px;right:12px;background:rgba(0,0,0,.48);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 12px;font-size:10px;display:none}
+.results-title{font-size:10px;font-weight:700;margin-bottom:6px;color:#fff}
+.result-row{display:flex;justify-content:space-between;gap:10px;line-height:1.7;color:#e8ece9}
+.result-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.result-score{flex:none;color:#c9f4d0}
+
 </style>
 </head>
 <body>
@@ -58,6 +65,12 @@ button{border:0;border-radius:999px;padding:10px 14px;background:rgba(0,0,0,.58)
   <div id="target"></div>
   <div id="hint">卵を中央に映してください</div>
   <div id="modelMsg">AIモデルを読み込んでいます…</div>
+
+  <div id="resultsPanel">
+    <div class="results-title">AI認識結果（上位5件）</div>
+    <div id="results">推論待機中…</div>
+  </div>
+
   <div id="note">AI商品認識：ImageNet画像分類モデル（ブラウザ内推論）／興味推定は簡易ルール</div>
 
   <div id="card">
@@ -105,6 +118,8 @@ const hint = document.getElementById('hint');
 const demoBtn = document.getElementById('demoBtn');
 const closeBtn = document.getElementById('closeBtn');
 const modelMsg = document.getElementById('modelMsg');
+const resultsPanel = document.getElementById('resultsPanel');
+const resultsEl = document.getElementById('results');
 
 let classifier = null;
 let cameraStarted = false;
@@ -133,6 +148,7 @@ async function loadModel() {
       return await pipeline('image-classification', 'Xenova/mobilenet_v2_1.0_224');
     });
     modelMsg.textContent = 'AIモデル準備完了';
+    resultsPanel.style.display = 'block';
     setTimeout(() => modelMsg.style.display = 'none', 1800);
     status.textContent = '卵を探しています…';
     startRecognitionLoop();
@@ -182,14 +198,19 @@ async function classifyCenter() {
   ctx.drawImage(video, sx, sy, size, size, 0, 0, 320, 320);
 
   const results = await classifier(canvas, { top_k: 5 });
+
+  resultsEl.innerHTML = results.map((r, i) =>
+    `<div class="result-row"><span class="result-label">${i+1}. ${r.label}</span><span class="result-score">${(r.score*100).toFixed(1)}%</span></div>`
+  ).join('');
+
   const egg = results.find(r => isEggLabel(r.label));
 
-  if (egg && egg.score >= 0.12) {
+  if (egg && egg.score >= 0.03) {
     positiveStreak++;
-    status.textContent = `卵を認識：${Math.round(egg.score * 100)}%`;
+    status.textContent = `卵候補：${egg.label} / ${Math.round(egg.score * 100)}%`;
     target.style.borderColor = 'rgba(190,245,195,.95)';
     if (positiveStreak >= 2) {
-      showUI(`AIが「卵」を認識しました（${Math.round(egg.score * 100)}%）`);
+      showUI(`AIが卵関連の対象を認識しました（${Math.round(egg.score * 100)}%）`);
     }
   } else {
     positiveStreak = 0;
