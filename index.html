@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Zero UI XR Prototype - Egg</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Helvetica Neue",Arial,sans-serif}
+#app{position:relative;width:100%;height:100%;height:100dvh;background:#111;color:#fff;overflow:hidden}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#151515}
+#fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;background:linear-gradient(145deg,#30352f,#64705d 55%,#20251f);z-index:1}
+#fallback .egg{font-size:72px;margin-bottom:10px}
+.topbar{position:absolute;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;display:flex;justify-content:space-between;align-items:center;z-index:4;pointer-events:none}
+.badge{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:7px 10px;border-radius:999px;font-size:11px;letter-spacing:.3px}
+#status{position:absolute;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:9px 14px;border-radius:999px;font-size:12px;z-index:4;white-space:nowrap}
+#target{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:170px;height:170px;border:2px solid rgba(255,255,255,.7);border-radius:24px;z-index:3;transition:.3s}
+#target:before,#target:after{content:"";position:absolute;width:28px;height:28px;border-color:#fff}
+#target:before{left:-2px;top:-2px;border-left:4px solid;border-top:4px solid;border-radius:18px 0 0 0}
+#target:after{right:-2px;bottom:-2px;border-right:4px solid;border-bottom:4px solid;border-radius:0 0 18px 0}
+#hint{position:absolute;top:calc(42% + 100px);left:50%;transform:translateX(-50%);z-index:3;font-size:11px;background:rgba(0,0,0,.42);padding:7px 10px;border-radius:8px;white-space:nowrap}
+#note{position:absolute;z-index:5;left:14px;bottom:calc(64px + env(safe-area-inset-bottom));font-size:9px;color:rgba(255,255,255,.7);max-width:70%}
+#card{position:absolute;z-index:6;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:rgba(18,22,19,.80);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.22);border-radius:22px;padding:17px;box-shadow:0 12px 35px rgba(0,0,0,.4);transform:translateY(125%);opacity:0;transition:.45s ease;max-height:75vh;overflow:auto}
+#card.show{transform:translateY(0);opacity:1}
+.title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.product{font-size:21px;font-weight:700;line-height:1.2}
+.sub{color:#cbd2cc;font-size:11px;margin-top:4px}
+.ai{font-size:9px;padding:6px 8px;border-radius:999px;background:rgba(130,225,145,.16);color:#c9f4d0;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:13px 0}
+.metric{background:rgba(255,255,255,.08);border-radius:11px;padding:9px 4px;text-align:center}
+.metric b{display:block;font-size:14px}
+.metric span{font-size:9px;color:#cbd2cc}
+.section{border-top:1px solid rgba(255,255,255,.12);padding-top:11px;margin-top:11px}
+.section-title{font-size:12px;font-weight:700;margin-bottom:7px}
+.state{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.state-value{color:#c9f4d0;font-weight:600}
+.bar{height:5px;background:rgba(255,255,255,.1);border-radius:99px;margin-top:7px;overflow:hidden}
+.bar span{display:block;height:100%;width:88%;background:#b9e9c0;border-radius:99px}
+.recipes{display:flex;gap:7px;flex-wrap:wrap}
+.recipes span{font-size:10px;background:rgba(255,255,255,.08);padding:7px 9px;border-radius:9px}
+#controls{position:absolute;z-index:8;bottom:calc(12px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:8px}
+button{border:0;border-radius:999px;padding:10px 14px;background:rgba(0,0,0,.58);color:#fff;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:11px}
+#closeBtn{display:none}
+#permission{position:absolute;z-index:10;left:16px;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));display:none;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.18);padding:13px 15px;border-radius:15px;font-size:11px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="video" autoplay playsinline muted></video>
+
+  <div id="fallback">
+    <div>
+      <div class="egg">🥚</div>
+      <h2>カメラを起動できませんでした</h2>
+      <p>SafariでHTTPSのページを開き、<br>カメラへのアクセスを「許可」してください。</p>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="badge">ZERO UI XR / PROTOTYPE</div>
+    <div class="badge" id="cameraState">CAMERA OFF</div>
+  </div>
+
+  <div id="status">カメラを起動しています…</div>
+  <div id="target"></div>
+  <div id="hint">卵を中央に映して、そのまま見てください</div>
+  <div id="note">※商品認識・興味推定はデモ用の疑似実装です</div>
+
+  <div id="card">
+    <div class="title">
+      <div>
+        <div class="product">🥚 卵</div>
+        <div class="sub">AIが「興味を持った」と推定しました</div>
+      </div>
+      <div class="ai">● INTEREST DETECTED</div>
+    </div>
+
+    <div class="grid">
+      <div class="metric"><b>76</b><span>kcal / 1個</span></div>
+      <div class="metric"><b>6.2g</b><span>たんぱく質</span></div>
+      <div class="metric"><b>5.2g</b><span>脂質</span></div>
+      <div class="metric"><b>0.2g</b><span>炭水化物</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">鮮度・状態</div>
+      <div class="state"><span>鮮度</span><span class="state-value">良好</span></div>
+      <div class="bar"><span></span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🍳 おすすめレシピ</div>
+      <div class="recipes">
+        <span>ゆで卵</span>
+        <span>卵焼き</span>
+        <span>親子丼</span>
+        <span>オムライス</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="permission">
+    <b>カメラを使用できません</b><br>
+    iPhoneの「設定 → Safari → カメラ」が「確認」または「許可」になっているか確認してください。
+  </div>
+
+  <div id="controls">
+    <button id="demoBtn">デモ：興味を検知</button>
+    <button id="closeBtn">UIを消す</button>
+  </div>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const fallback = document.getElementById('fallback');
+const cameraState = document.getElementById('cameraState');
+const status = document.getElementById('status');
+const card = document.getElementById('card');
+const target = document.getElementById('target');
+const hint = document.getElementById('hint');
+const demoBtn = document.getElementById('demoBtn');
+const closeBtn = document.getElementById('closeBtn');
+const permission = document.getElementById('permission');
+
+let interestTimer = null;
+let cameraStarted = false;
+
+async function startCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    fallback.style.display = 'flex';
+    status.textContent = 'この環境ではカメラを利用できません';
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+    video.srcObject = stream;
+    cameraStarted = true;
+    cameraState.textContent = 'CAMERA ON';
+    status.textContent = '商品を探しています…';
+    permission.style.display = 'none';
+
+    // デモ用：ページ表示後、一定時間で興味検知を自動再現
+    interestTimer = setTimeout(showUI, 5000);
+  } catch (e) {
+    cameraState.textContent = 'CAMERA ERROR';
+    status.textContent = 'カメラへのアクセスが必要です';
+    permission.style.display = 'block';
+    fallback.style.display = 'flex';
+  }
+}
+
+function showUI(){
+  card.classList.add('show');
+  target.style.borderColor = 'rgba(190,245,195,.95)';
+  target.style.boxShadow = '0 0 22px rgba(190,245,195,.35)';
+  status.textContent = 'AIが興味を検知しました';
+  hint.style.display = 'none';
+  demoBtn.style.display = 'none';
+  closeBtn.style.display = 'inline-block';
+}
+
+function hideUI(){
+  card.classList.remove('show');
+  target.style.borderColor = 'rgba(255,255,255,.7)';
+  target.style.boxShadow = 'none';
+  status.textContent = '商品を探しています…';
+  hint.style.display = 'block';
+  demoBtn.style.display = 'inline-block';
+  closeBtn.style.display = 'none';
+  clearTimeout(interestTimer);
+}
+
+demoBtn.addEventListener('click', showUI);
+closeBtn.addEventListener('click', hideUI);
+
+// iOS Safariではユーザー操作を起点にしたカメラ起動が必要な場合があるため、
+// ページタップでも再試行できるようにする。
+document.body.addEventListener('click', () => {
+  if (!cameraStarted && !fallback.style.display) startCamera();
+}, {once:true});
+
+startCamera();
+</script>
+</body>
+</html>
