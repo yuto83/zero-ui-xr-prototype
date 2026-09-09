@@ -106,7 +106,7 @@ button{border:0;border-radius:999px;padding:10px 14px;background:rgba(0,0,0,.58)
 
 <!-- Transformers.js: ブラウザ上で画像分類モデルを実行 -->
 <script type="module">
-import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 
 const video = document.getElementById('video');
 const fallback = document.getElementById('fallback');
@@ -142,10 +142,8 @@ function isEggLabel(label) {
 async function loadModel() {
   try {
     modelMsg.textContent = 'AIモデルを読み込んでいます…（初回のみ時間がかかります）';
-    classifier = await pipeline('image-classification', 'Xenova/mobilenet_v2_1.0_224', {
-      device: 'webgpu'
-    }).catch(async () => {
-      return await pipeline('image-classification', 'Xenova/mobilenet_v2_1.0_224');
+    classifier = await pipeline('image-classification', 'onnx-community/mobilenet_v2_1.0_224', {
+      dtype: 'q8'
     });
     modelMsg.textContent = 'AIモデル準備完了';
     resultsPanel.style.display = 'block';
@@ -154,7 +152,7 @@ async function loadModel() {
     startRecognitionLoop();
   } catch (e) {
     console.error(e);
-    modelMsg.textContent = 'AIモデルの読み込みに失敗（デモは利用できます）';
+    modelMsg.textContent = 'AIモデルの読み込みに失敗しました。下の「デモ：AI判定を再現」は利用できます。';
     demoBtn.textContent = 'デモ：AI判定を再現';
     status.textContent = 'AIモデルを準備できませんでした';
   }
