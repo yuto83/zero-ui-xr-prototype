@@ -205,12 +205,12 @@ async function classifyCenter() {
 
   const egg = results.find(r => isEggLabel(r.label));
 
-  if (egg && egg.score >= 0.03) {
+  if (egg && egg.score >= 0.12) {
     positiveStreak++;
-    status.textContent = `卵候補：${egg.label} / ${Math.round(egg.score * 100)}%`;
+    status.textContent = `卵を認識：${Math.round(egg.score * 100)}%`;
     target.style.borderColor = 'rgba(190,245,195,.95)';
     if (positiveStreak >= 2) {
-      showUI(`AIが卵関連の対象を認識しました（${Math.round(egg.score * 100)}%）`);
+      showUI(`AIが「卵」を認識しました（${Math.round(egg.score * 100)}%）`);
     }
   } else {
     positiveStreak = 0;
