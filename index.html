@@ -5,106 +5,334 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Zero UI XR — AI診断 v12</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
-.wrap{max-width:650px;margin:auto;padding:18px}.camera{width:100%;aspect-ratio:1;background:#222;border-radius:16px;overflow:hidden}
-video{width:100%;height:100%;object-fit:cover}h1{font-size:20px;margin:0 0 14px}
-#status{margin:14px 0;font-weight:700}button{width:100%;padding:14px;border:0;border-radius:12px;font-size:16px;font-weight:700;margin:6px 0}
-#log{background:#1d1d1d;border-radius:12px;padding:14px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.55;max-height:45vh;overflow:auto}
-.ok{font-weight:700}
+*{box-sizing:border-box}
+body{margin:0;background:#08090b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+.wrap{max-width:620px;margin:auto;padding:18px}
+h1{font-size:20px;margin:0 0 14px}
+.camera{position:relative;width:100%;aspect-ratio:1;overflow:hidden;border-radius:18px;background:#17191c;border:1px solid #333}
+video{width:100%;height:100%;object-fit:cover}
+.focusBox{position:absolute;left:25%;top:25%;width:50%;height:50%;border:2px solid rgba(255,255,255,.7);border-radius:18px;pointer-events:none}
+#status{margin:12px 0;font-weight:700}
+.panel{background:#17191c;border:1px solid #2b2e33;border-radius:14px;padding:12px;margin:9px 0}
+.panelTitle{font-size:12px;color:#aaa;margin-bottom:8px;font-weight:700}
+.row{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:13px}
+.row span{color:#aaa}.row strong{text-align:right}
+.bar{height:5px;background:#303238;border-radius:5px;overflow:hidden;margin-top:8px}
+#scoreBar{height:100%;width:0;background:#fff;transition:width .25s}
+.small{font-size:10px;line-height:1.5;color:#888;margin-top:8px}
+#top5{font-size:11px;line-height:1.7;color:#ddd}
+button{width:100%;padding:14px;border:0;border-radius:12px;font-size:15px;font-weight:700;margin-top:10px}
+button:disabled{opacity:.4}
+#infoOverlay{position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:16px;z-index:20}
+#infoOverlay.show{display:flex}
+.infoCard{position:relative;width:min(560px,100%);background:rgba(25,27,31,.96);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:22px;box-shadow:0 15px 50px rgba(0,0,0,.5)}
+.close{position:absolute;right:12px;top:12px;width:38px;height:38px;padding:0;margin:0;border-radius:50%;font-size:25px;background:#333;color:#fff}
+.badge{display:inline-block;font-size:10px;letter-spacing:1.5px;padding:5px 8px;border-radius:20px;background:#fff;color:#111;font-weight:800}
+.infoCard h2{font-size:30px;margin:14px 0 2px}.sub{font-size:12px;color:#aaa}
+.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}
+.infoGrid div{background:#202329;border-radius:13px;padding:12px}.infoGrid b{display:block;font-size:18px}.infoGrid span{display:block;font-size:10px;color:#999;margin-top:3px}
+.section{padding:12px 0;border-top:1px solid #303238;font-size:13px}.section>b{display:block;margin-bottom:7px}.fresh{display:inline-block;padding:5px 9px;border-radius:8px;background:#30352f}
+.section ul{margin:0;padding-left:20px;line-height:1.8}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>Zero UI XR — AIモデル診断 v12</h1>
-<div class="camera"><video id="video" autoplay playsinline muted></video></div>
-<div id="status">準備中…</div>
-<button id="load">AIモデルを読み込む</button>
-<button id="recognize" disabled>AI認識を実行</button>
-<div id="log">ログを表示します。</div>
-<canvas id="canvas" width="320" height="320" style="display:none"></canvas>
+  <h1>Zero UI XR — AI × 意図推定 v13</h1>
+
+  <div class="camera">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="focusBox"></div>
+  </div>
+
+  <div id="status">AIモデルを準備しています…</div>
+
+  <div class="panel">
+    <div class="panelTitle">AI商品認識</div>
+    <div class="row"><span>認識結果</span><strong id="aiLabel">--</strong></div>
+    <div class="row"><span>信頼度</span><strong id="aiScore">--</strong></div>
+    <div class="bar"><div id="scoreBar"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panelTitle">ユーザー意図推定</div>
+    <div class="row"><span>卵の連続認識</span><strong id="streak">0 / 2</strong></div>
+    <div class="row"><span>推定状態</span><strong id="intent">観察中</strong></div>
+    <div class="small">同一商品が連続して認識されたことを「興味」の代理指標として使用</div>
+  </div>
+
+  <div class="panel">
+    <div class="panelTitle">AI認識 上位5件</div>
+    <div id="top5">--</div>
+  </div>
+
+  <button id="demo" disabled>デモ：情報UIを表示</button>
 </div>
 
-<script type="module">
-const logEl=document.getElementById('log');
-const statusEl=document.getElementById('status');
-const loadBtn=document.getElementById('load');
-const recBtn=document.getElementById('recognize');
-const video=document.getElementById('video');
-const canvas=document.getElementById('canvas');
+<div id="infoOverlay">
+  <div class="infoCard">
+    <button class="close" id="close">×</button>
+    <div class="badge">ZERO UI</div>
+    <h2>🥚 卵</h2>
+    <div class="sub">AIが商品への興味を推定しました</div>
 
-function log(x){
-  const s = x instanceof Error ? (x.stack || x.message) : String(x);
-  logEl.textContent += "\n\n" + s;
-  logEl.scrollTop=logEl.scrollHeight;
-}
-window.addEventListener('error',e=>log("GLOBAL ERROR\n"+e.message+"\n"+e.filename+":"+e.lineno));
-window.addEventListener('unhandledrejection',e=>log("UNHANDLED PROMISE\n"+(e.reason?.stack||e.reason)));
+    <div class="infoGrid">
+      <div><b>76 kcal</b><span>エネルギー</span></div>
+      <div><b>P 6.2g</b><span>たんぱく質</span></div>
+      <div><b>F 5.2g</b><span>脂質</span></div>
+      <div><b>C 0.2g</b><span>炭水化物</span></div>
+    </div>
+
+    <div class="section"><b>鮮度</b><span class="fresh">良好</span></div>
+    <div class="section"><b>おすすめレシピ</b>
+      <ul>
+        <li>ゆで卵</li>
+        <li>卵焼き</li>
+        <li>親子丼</li>
+        <li>オムライス</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html<script type="module">
+const statusEl=document.getElementById('status');
+const video=document.getElementById('video');
+const canvas=document.createElement('canvas');
+canvas.width=320; canvas.height=320;
+
+const aiLabel=document.getElementById('aiLabel');
+const aiScore=document.getElementById('aiScore');
+const scoreBar=document.getElementById('scoreBar');
+const streakEl=document.getElementById('streak');
+const intentEl=document.getElementById('intent');
+const top5El=document.getElementById('top5');
+const demoBtn=document.getElementById('demo');
+const overlay=document.getElementById('infoOverlay');
+const closeBtn=document.getElementById('close');
 
 let classifier=null;
+let positiveStreak=0;
+let busy=false;
+let visible=true;
+let lastResults=[];
 
-async function camera(){
+const eggWords=[
+  'egg','omelet','omelette','hard-boiled egg','soft-boiled egg',
+  'fried egg','scrambled egg','poached egg'
+];
+
+function isEggLabel(label){
+  const s=String(label).toLowerCase();
+  return eggWords.some(k=>s.includes(k));
+}
+
+function showInfo(){
+  overlay.classList.add('show');
+}
+
+function hideInfo(){
+  overlay.classList.remove('show');
+  positiveStreak=0;
+  streakEl.textContent='0 / 2';
+  intentEl.textContent='観察中';
+}
+
+demoBtn.addEventListener('click',showInfo);
+closeBtn.addEventListener('click',hideInfo);
+overlay.addEventListener('click',e=>{if(e.target===overlay)hideInfo();});
+
+async function startCamera(){
   try{
-    if(!navigator.mediaDevices?.getUserMedia) throw new Error("getUserMedia が利用できません。HTTPSで開いているか確認してください。");
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'}},audio:false
+    });
     video.srcObject=stream;
     await video.play();
-    statusEl.textContent="カメラ起動済み";
-    log("✓ カメラ: OK");
   }catch(e){
-    statusEl.textContent="カメラ起動失敗";
-    log("CAMERA ERROR\n"+(e.stack||e));
+    statusEl.textContent='カメラを起動できませんでした';
+    console.error(e);
   }
 }
 
 async function loadAI(){
-  loadBtn.disabled=true;
-  statusEl.textContent="Transformers.jsを読み込んでいます…";
-  log("\n=== AI LOAD START ===");
+  statusEl.textContent='AIモデルを読み込んでいます…';
   try{
-    log("1. CDN import開始");
-    const mod=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");
-    log("✓ Transformers.js import: OK");
-
+    // v12で実際にロード成功した方式を維持。
+    const mod=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
     const pipeline=mod.pipeline;
-    if(!pipeline) throw new Error("pipeline が取得できませんでした。");
 
-    statusEl.textContent="AIモデルを読み込んでいます…";
-    log("2. pipeline開始");
-    log("model = onnx-community/mobilenet_v2_1.0_224");
-    log("device = wasm/CPU（WebGPUを使用しません）");
+    classifier=await pipeline(
+      'image-classification',
+      'onnx-community/mobilenet_v2_1.0_224'
+    );
 
-    classifier=await pipeline("image-classification","onnx-community/mobilenet_v2_1.0_224");
-    log("✓ AI MODEL LOAD: OK");
-    statusEl.textContent="AI準備完了";
-    recBtn.disabled=false;
+    statusEl.textContent='AI準備完了 — 商品を認識しています…';
+    demoBtn.disabled=false;
+    setTimeout(inferenceLoop,1000);
   }catch(e){
-    statusEl.textContent="AIモデル読み込み失敗";
-    log("❌ AI LOAD ERROR\n"+(e?.stack||e));
-    loadBtn.disabled=false;
+    statusEl.textContent='AIモデルを準備できませんでした';
+    console.error(e);
   }
 }
 
-async function recognize(){
-  if(!classifier)return;
+async function classify(){
+  if(!classifier || busy || !visible || overlay.classList.contains('show')) return;
+  busy=true;
   try{
-    statusEl.textContent="AI認識中…";
-    const ctx=canvas.getContext("2d");
+    const ctx=canvas.getContext('2d');
     const size=Math.min(video.videoWidth,video.videoHeight);
-    if(!size) throw new Error("カメラ映像のサイズを取得できません。");
-    const sx=(video.videoWidth-size)/2, sy=(video.videoHeight-size)/2;
+    if(!size) throw new Error('camera frame is not ready');
+
+    const sx=(video.videoWidth-size)/2;
+    const sy=(video.videoHeight-size)/2;
     ctx.drawImage(video,sx,sy,size,size,0,0,320,320);
+
     const results=await classifier(canvas,{top_k:5});
-    log("\n=== AI RESULT ===\n"+results.map((r,i)=>(i+1)+". "+r.label+" — "+(r.score*100).toFixed(1)+"%").join("\n"));
-    statusEl.textContent="AI認識完了";
+    lastResults=results;
+
+    if(results[0]){
+      aiLabel.textContent=results[0].label;
+      aiScore.textContent=(results[0].score*100).toFixed(1)+'%';
+      scoreBar.style.width=Math.min(100,results[0].score*100)+'%';
+    }
+
+    top5El.innerHTML=results.map((r,i)=>
+      `${i+1}. ${r.label} — ${(r.score*100).toFixed(1)}%`
+    ).join('<br>');
+
+    const egg=results.find(r=>isEggLabel(r.label));
+
+    if(egg){
+      positiveStreak++;
+      streakEl.textContent=`${positiveStreak} / 2`;
+      intentEl.textContent=positiveStreak>=2?'興味あり':'興味候補';
+      statusEl.textContent=`卵を認識中 — ${Math.round(egg.score*100)}%`;
+
+      if(positiveStreak>=2){
+        showInfo();
+      }
+    }else{
+      positiveStreak=0;
+      streakEl.textContent='0 / 2';
+      intentEl.textContent='観察中';
+      statusEl.textContent='商品を認識しています…';
+    }
   }catch(e){
-    statusEl.textContent="AI認識失敗";
-    log("❌ INFERENCE ERROR\n"+(e?.stack||e));
+    console.error(e);
+    statusEl.textContent='AI認識エラー';
+  }finally{
+    busy=false;
   }
 }
 
-loadBtn.addEventListener("click",loadAI);
-recBtn.addEventListener("click",recognize);
-camera();
-</script>
+function inferenceLoop(){
+  if(!visible){
+    setTimeout(inferenceLoop,7000);
+    return;
+  }
+  classify().finally(()=>setTimeout(inferenceLoop,7000));
+}
+
+document.addEventListener('visibilitychange',()=>{
+  visible=!document.hidden;
+});
+
+await startCamera();
+await loadAI();
+</script>e html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zero UI XR — AI診断 v12</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#08090b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+.wrap{max-width:620px;margin:auto;padding:18px}
+h1{font-size:20px;margin:0 0 14px}
+.camera{position:relative;width:100%;aspect-ratio:1;overflow:hidden;border-radius:18px;background:#17191c;border:1px solid #333}
+video{width:100%;height:100%;object-fit:cover}
+.focusBox{position:absolute;left:25%;top:25%;width:50%;height:50%;border:2px solid rgba(255,255,255,.7);border-radius:18px;pointer-events:none}
+#status{margin:12px 0;font-weight:700}
+.panel{background:#17191c;border:1px solid #2b2e33;border-radius:14px;padding:12px;margin:9px 0}
+.panelTitle{font-size:12px;color:#aaa;margin-bottom:8px;font-weight:700}
+.row{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:13px}
+.row span{color:#aaa}.row strong{text-align:right}
+.bar{height:5px;background:#303238;border-radius:5px;overflow:hidden;margin-top:8px}
+#scoreBar{height:100%;width:0;background:#fff;transition:width .25s}
+.small{font-size:10px;line-height:1.5;color:#888;margin-top:8px}
+#top5{font-size:11px;line-height:1.7;color:#ddd}
+button{width:100%;padding:14px;border:0;border-radius:12px;font-size:15px;font-weight:700;margin-top:10px}
+button:disabled{opacity:.4}
+#infoOverlay{position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:16px;z-index:20}
+#infoOverlay.show{display:flex}
+.infoCard{position:relative;width:min(560px,100%);background:rgba(25,27,31,.96);border:1px solid rgba(255,255,255,.18);border-radius:24px;padding:22px;box-shadow:0 15px 50px rgba(0,0,0,.5)}
+.close{position:absolute;right:12px;top:12px;width:38px;height:38px;padding:0;margin:0;border-radius:50%;font-size:25px;background:#333;color:#fff}
+.badge{display:inline-block;font-size:10px;letter-spacing:1.5px;padding:5px 8px;border-radius:20px;background:#fff;color:#111;font-weight:800}
+.infoCard h2{font-size:30px;margin:14px 0 2px}.sub{font-size:12px;color:#aaa}
+.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}
+.infoGrid div{background:#202329;border-radius:13px;padding:12px}.infoGrid b{display:block;font-size:18px}.infoGrid span{display:block;font-size:10px;color:#999;margin-top:3px}
+.section{padding:12px 0;border-top:1px solid #303238;font-size:13px}.section>b{display:block;margin-bottom:7px}.fresh{display:inline-block;padding:5px 9px;border-radius:8px;background:#30352f}
+.section ul{margin:0;padding-left:20px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Zero UI XR — AI × 意図推定 v13</h1>
+
+  <div class="camera">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="focusBox"></div>
+  </div>
+
+  <div id="status">AIモデルを準備しています…</div>
+
+  <div class="panel">
+    <div class="panelTitle">AI商品認識</div>
+    <div class="row"><span>認識結果</span><strong id="aiLabel">--</strong></div>
+    <div class="row"><span>信頼度</span><strong id="aiScore">--</strong></div>
+    <div class="bar"><div id="scoreBar"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panelTitle">ユーザー意図推定</div>
+    <div class="row"><span>卵の連続認識</span><strong id="streak">0 / 2</strong></div>
+    <div class="row"><span>推定状態</span><strong id="intent">観察中</strong></div>
+    <div class="small">同一商品が連続して認識されたことを「興味」の代理指標として使用</div>
+  </div>
+
+  <div class="panel">
+    <div class="panelTitle">AI認識 上位5件</div>
+    <div id="top5">--</div>
+  </div>
+
+  <button id="demo" disabled>デモ：情報UIを表示</button>
+</div>
+
+<div id="infoOverlay">
+  <div class="infoCard">
+    <button class="close" id="close">×</button>
+    <div class="badge">ZERO UI</div>
+    <h2>🥚 卵</h2>
+    <div class="sub">AIが商品への興味を推定しました</div>
+
+    <div class="infoGrid">
+      <div><b>76 kcal</b><span>エネルギー</span></div>
+      <div><b>P 6.2g</b><span>たんぱく質</span></div>
+      <div><b>F 5.2g</b><span>脂質</span></div>
+      <div><b>C 0.2g</b><span>炭水化物</span></div>
+    </div>
+
+    <div class="section"><b>鮮度</b><span class="fresh">良好</span></div>
+    <div class="section"><b>おすすめレシピ</b>
+      <ul>
+        <li>ゆで卵</li>
+        <li>卵焼き</li>
+        <li>親子丼</li>
+        <li>オムライス</li>
+      </ul>
+    </div>
+  </div>
+</div>
 </body>
 </html>
